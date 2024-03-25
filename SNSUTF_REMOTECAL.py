@@ -9,7 +9,7 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 23-03-2024 21:18 UTC(IDN)
+# Updated 25-03-2024 13:35 UTC(IDN)
 
 
 
@@ -36,6 +36,8 @@ while True:
     client_name = input("Client Name\t\t:")
     print("\n")
     workbook = Workbook()
+    mjds= []
+    averages = []
 
     while True:
 
@@ -63,8 +65,7 @@ while True:
         # MJD name for make sheet name
         mjd = input ("Input MJD\t\t:")
         print("\n")
-        worksheet = workbook.active
-        worksheet.title = mjd
+        worksheet = workbook.create_sheet(title=f"{mjd}")
 
         # std input
         # std file using CGGTTS DATA FORMAT version 01
@@ -134,14 +135,19 @@ while True:
 
 # ---------- Baca dan print ke excel data UUT
 
-        #Buka STD File
+        #Buka UUT File
         with open(f'{uutFile}.txt', 'r') as Fileuut:
         # Baca semua baris kecuali baris pertama
             uutLines = Fileuut.readlines()
 
-        nama_kolom = ['PRN','STTIME','REFGPS']
-        header = uutLines[17].strip().split()
-        uut_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+        if uutFormat == "2E":
+            nama_kolom = ['SAT','STTIME','REFSYS']
+            header = uutLines[16].strip().split()
+            uut_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+        else:
+            nama_kolom = ['PRN','STTIME','REFGPS']
+            header = uutLines[17].strip().split()
+            uut_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
 
         # Loop melalui setiap baris file
         for line in uutLines[19:]:  # Mulai dari baris kedelapan belas karena baris pertama adalah header
@@ -150,18 +156,36 @@ while True:
             # Pastikan jumlah elemen dalam baris sesuai dengan jumlah kolom yang diharapkan
             if len(data) >= max(uut_indeks_kolom) + 1:
                 # Masukkan ke dalam list yang sesuai
-                if data[uut_indeks_kolom[0]].isdigit():
+                if uutFormat == "2E":
                     uutPrn.append(data[uut_indeks_kolom[0]])
                 else:
-                    print("Skipping uutPRN non-numeric values\n")
+                    if data[uut_indeks_kolom[0]].isdigit():
+                        uutPrn.append(data[uut_indeks_kolom[0]])
+                    else:
+                        print("Skipping uutPRN non-numeric values\n")
                 if data[uut_indeks_kolom[1]].isdigit():
                     uutSttime.append(data[uut_indeks_kolom[1]])
                 else:
                     print("Skipping uutSttime non-numeric values\n")
-                if data[uut_indeks_kolom[2]].isdigit() or data[uut_indeks_kolom[2]].startswith("-"):
+                if data[uut_indeks_kolom[2]].isdigit() or data[uut_indeks_kolom[2]].startswith("-") or data[uut_indeks_kolom[2]].startswith("+"):
                     uutRefGPS.append(data[uut_indeks_kolom[2]])
                 else:
                     print("Skipping uutRefGPS non-numeric values\n")
+        print(uutPrn)
+
+    # HAPUSIN HURUF DEPAN
+        if uutFormat == "2E":
+            bersih =[]
+            for item in uutPrn:
+                if item[0].isdigit():
+                    bersih.append(item)
+                else:
+                    bersih.append(item[1:])
+        print(bersih)
+        uutPrn = []
+
+        for i, item in enumerate(bersih):
+            uutPrn.append(bersih[i])
 
 # - - - - - transfering data to excel
         print ("Transfering UUT data to Excel File . . .\n")
@@ -322,14 +346,16 @@ while True:
         cell = worksheet.cell(row=3,column=26)
         cell.value = average
 
+        print(f"The Average Difference UTC(IDN) and {client_name} at {mjd} is {average}\n")
+
         print("Show and Save Graph :\n")
 
         # Membuat plot
         plt.plot(difValue)
 
         # Menambahkan judul dan label sumbu
-        plt.title(f'Grafik Perbedaan Nilai Ref GPS UTC(IDN) dengan {client_name} pada {mjd}')
-        plt.xlabel('Waktu')
+        plt.title(f'The Difference Graph UTC(IDN) and {client_name} at {mjd}')
+        plt.xlabel('Time')
         plt.ylabel(f'UTC(IDN) - {client_name}')
 
         plt.show()
@@ -338,25 +364,69 @@ while True:
         plt.savefig(f'{client_name} - {mjd}.png')
 
         print("Calculating Done\n")
+
         print("Saving to Excel . . . .\n")
+
         # simpan excel
         excelFile = f"{client_name}.xlsx"
+        
         workbook.save(excelFile)
         print(f"Data Saved in {client_name}.xlsx in sheet {mjd}\n")
+
+        # jumlahkan mjd dan average
+        mjds.append(mjd)
+        averages.append(average)
 
         # Menutup sesi MJD
         mjdNext = input ("Calculate next MJD (y/n)\t:")
         if mjdNext == "n":
             break
-    
+
+    # save rekapan
+    worksheet = workbook.create_sheet(title=f" {client_name} ")
+
+    cell = worksheet.cell(row=2,column=2)
+    cell.value = "MJD vs Average"
+
+    cell = worksheet.cell(row=3,column=2)
+    cell.value = "MJD"
+    cell = worksheet.cell(row=3,column=3)
+    cell.value = "Average"
+
+    for i, item in enumerate(mjds, start=4):
+        cell = worksheet.cell(row=i, column=2)
+        cell.value = item
+    for i, item in enumerate(averages, start=4):
+        cell = worksheet.cell(row=i, column=3)
+        cell.value = item
+    workbook.save(excelFile)
+
+
     # Menutup sesi Client
     clientNext = input ("Calculate next Client (y/n)\t:")
     if clientNext == "n":
         break
 
+# tampilkan data rekapan
+rekap = input("Display Calculating Summary (y/n)?")
+
+if rekap == "y":
+    # Plot
+    plots = plt
+    plots.plot(mjds, averages, marker='o', linestyle='-')
+
+    # Label sumbu x dan sumbu y
+    plots.xlabel('MJD')
+    plots.ylabel('Average')
+
+    # Judul plot
+    plots.title(f"UTC(IDN) vs {client_name}")
+
+    # Menampilkan grid
+    plots.grid(True)
+
+    # Menampilkan plot
+    plots.show()
+    plots.savefig(f'{client_name}.png')
 
 print ("Thank you and See you in the next Remote Calibration")
-    
-    
-
-
