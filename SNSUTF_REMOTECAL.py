@@ -9,424 +9,939 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 25-03-2024 13:35 UTC(IDN)
+# Updated 05-08-2024 22:17 UTC(IDN)
 
 
+'''
+SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
+CGGTTS ANALYZER
+GUI--
+UPDATE 05/08/2024
+'''
 
+# -------- Libraries
 
+# -------- -------- System Libraries
+import sys
+import os
 
+# -------- -------- GUI Libraries
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar, QTextEdit, QDialog
+from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QComboBox, QSpinBox, QMessageBox, QSpacerItem, QSizePolicy
+from PyQt5.QtGui import QPixmap, QFont, QIcon,  QDesktopServices
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal
 
+# -------- -------- Time Libraries
+from datetime import date
+import datetime as dt
+from astropy.time import Time
+import time
 
-
-
-
-
-# ---------- Libraries
+# -------- -------- Time Libraries
 from openpyxl import Workbook
 import numpy as np
-import matplotlib.pyplot as plt
 
-print("="*10,"Laboratory of SNSU Time and Frequency","="*10)
-print("="*10,"Time Standard Remote Calibration v.02","="*10,"\n")
+# -------- -------- BIPM CIRT
+import requests
 
+# -------- GUI Design
 
-while True:
+# -------- -------- Color
+oren = "background-color: #369FFF; color: white"
+ijau = "background-color: #5CA904; color: white"
+prog = "QProgressBar { border-radius :8px ; text-align: center; background-color:#369FFF ; color: white; border: 1px solid black;} QProgressBar::chunk { background-color:#5CA904 ; border-radius :8px; }"
 
-    # client name for make excel file
-    client_name = input("Client Name\t\t:")
-    print("\n")
-    workbook = Workbook()
-    mjds= []
-    averages = []
+# -------- -------- Font
+font = QFont("Inter",10)
+font = QFont("Inter",10)
 
-    while True:
+# Class
+class jendelautama(QWidget):
+    def __init__(self):
+        super().__init__()
 
-        # lists
-        stdPrn = []
-        stdSttime = []
-        stdRefGPS = []
-        sortedStdRefGPS =[]
+        self.initUI()
+    
+    # ini berisi tampilan untuk bagian header
+    def header(self):
 
-        uutPrn = []
-        uutSttime = []
-        uutRefGPS = []
-        sortedUutRefGPS =[]
+        judul = QLabel(self)
+        judul.setText("  Time and Frequency Remote Calibration Software\t\t\t\t\n  CGGTTS Analyzer")
+        judul.setStyleSheet(f"{oren}; font-weight: DemiBold")
+        judul.setFont(QFont("Inter", 12))
 
-        stdRefVal = []
-        uutRefVal = []
+        spasi = QSpacerItem(60, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
-        CstdRefVal = []
-        CstdRefGPS = []
-        CuutRefVal = []
-        CuutRefGPS = []
+        self.informasi = QPushButton(self)
+        self.informasi.setText(" i ")
+        self.informasi.setStyleSheet(oren)
+        self.informasi.setFont(font)
 
-        difValue = []
+        # set tanggal hari
+        hari_ini = date.today()
+        tanggal_iso = hari_ini.isoformat()
+        time_obj = Time(tanggal_iso, format='iso')
+        tanggal_terformat = hari_ini.strftime("%d-%m-%Y")
+        mjd = time_obj.mjd
+        mjd_str = str(mjd)
+        mjd_str = round(mjd)
+        mjd_int = int(mjd_str)
 
-        # MJD name for make sheet name
-        mjd = input ("Input MJD\t\t:")
-        print("\n")
-        worksheet = workbook.create_sheet(title=f"{mjd}")
+        tanggalBiasa = QLabel(self)
+        tanggalBiasa.setText(f"   {tanggal_terformat}   ")
+        tanggalBiasa.setFont(font)
+        tanggalBiasa.setStyleSheet(oren)
 
-        # std input
-        # std file using CGGTTS DATA FORMAT version 01
-        stdFile = input("Standard File Name\t:")
-        print("\n")
+        tanggalMJD = QLabel(self)
+        tanggalMJD.setText(f"    {mjd_int}    ")
+        tanggalMJD.setFont(font)
+        tanggalMJD.setStyleSheet(oren)
 
-        # uut input
-        # std file using CGGTTS DATA FORMAT can be 01 or 
-        uutFile = input("UUT File Name\t\t:")
-        uutFormat = input ("UUT Data Format\t\t:")
-        print("\nStarting Calculating . . . \n")
+        satu = QHBoxLayout ()
+        satu.addWidget(tanggalBiasa)
+        satu.addWidget(tanggalMJD)
+        satu.addItem(spasi)
+        satu.addItem(spasi)
+        satu.addWidget(self.informasi)
+
+        headerLayout = QVBoxLayout ()
+        headerLayout.addWidget(judul)
+        headerLayout.addLayout(satu)
+        headerLayout.addItem(spasi)
+
+        return headerLayout
+    
+    # Untuk input input
+    def input (self):
+
+        nama = QLabel("Client Name")
+        nama.setFont(font)
+        tanggal = QLabel("MJD")
+        tanggal.setFont(font)
+
+        self.dirStandar = QPushButton (self)
+        self.dirStandar.setText("Directory Standard")
+        self.dirStandar.setFont(font)
+        self.dirStandar.setStyleSheet(oren)
+        self.dirStandar.clicked.connect(self.stand)
+
+        self.dirUUT = QPushButton (self)
+        self.dirUUT.setText("Directory UUT")
+        self.dirUUT.setFont(font)
+        self.dirUUT.setStyleSheet(oren)
+        self.dirUUT.clicked.connect(self.uuts)
+
+        self.dirOutput = QPushButton (self)
+        self.dirOutput.setText("Directory Output")
+        self.dirOutput.setFont(font)
+        self.dirOutput.setStyleSheet(oren)
+        self.dirOutput.clicked.connect(self.outputss)
+
+        self.locStandar = QLineEdit(self)
+        self.locStandar.setFont(font)
+        self.locStandar.setReadOnly(True)
+        self.locUUT = QLineEdit(self)
+        self.locUUT.setFont(font)
+        self.locUUT.setReadOnly(True)
+        self.locOutput = QLineEdit(self)
+        self.locOutput.setFont(font)
+        self.locOutput.setReadOnly(True)
+
+        self.tipeStandar = QComboBox(self)
+        self.tipeStandar.setFont(font)
+        self.tipeStandar.setStyleSheet(oren)
+        self.tipeStandar.addItems(["01","2E"])
+
+        self.tipeUUT = QComboBox(self)
+        self.tipeUUT.setFont(font)
+        self.tipeUUT.setStyleSheet(oren)
+        self.tipeUUT.addItems(["01","2E"])
+
+        spasi = QSpacerItem(60, 40, QSizePolicy.Expanding, QSizePolicy.Minimum)
         
-        # ---------- Baca dan print ke excel data STD
+        satu = QVBoxLayout()
+        satu.addWidget(self.dirStandar)
+        satu.addWidget(self.dirUUT)
+        satu.addWidget(self.dirOutput)
 
-        #Buka STD File
-        with open(f'{stdFile}.txt', 'r') as Filestd:
-        # Baca semua baris kecuali baris pertama
+        dua = QVBoxLayout()
+        dua.addWidget(self.locStandar)
+        dua.addWidget(self.locUUT)
+        dua.addWidget(self.locOutput)
+
+        tiga = QVBoxLayout()
+        tiga.addWidget(self.tipeStandar)
+        tiga.addWidget(self.tipeUUT)
+        tiga.addItem(spasi)
+
+        inputsLayout = QHBoxLayout()
+        inputsLayout.addLayout(satu)
+        inputsLayout.addLayout(dua)
+        inputsLayout.addLayout(tiga)
+
+        inputsLayout.setStretchFactor(satu,1)
+        inputsLayout.setStretchFactor(dua,5)
+        inputsLayout.setStretchFactor(tiga,1)
+
+        return inputsLayout
+
+    # Untuk running
+    def run (self):
+        satu = QHBoxLayout()
+        dua = QHBoxLayout()
+        tiga = QHBoxLayout()
+        empat = QHBoxLayout()
+
+        cl = QLabel()
+        cl.setText("Client Name")
+        cl.setFont(font)
+
+        mjdl = QLabel()
+        mjdl = QLabel()
+        mjdl.setText("MJD")
+        mjdl.setFont(font)
+
+        utclabel = QLabel()
+        utclabel.setText("UTC(IDN)")
+        utclabel.setAlignment(Qt.AlignCenter)
+        utclabel.setFont(font)
+        
+        uutlabel = QLabel()
+        uutlabel.setAlignment(Qt.AlignCenter)
+        uutlabel.setText("UUT")
+        uutlabel.setFont(font)
+
+        self.clientname = QLineEdit(self)
+        self.mjdname = QLineEdit(self)
+        self.clientname.setFont(font)
+        self.mjdname.setFont(font)
+
+        self.kor = QLineEdit(self)
+        self.kor.setFont(font)
+        self.kor.setStyleSheet(oren)
+        self.kor.setReadOnly(True)
+
+        self.utcname = QComboBox(self)
+        self.utcname.setStyleSheet(oren)
+        self.utcname.setFont(font)
+        self.uutname = QComboBox(self)
+        self.uutname.setStyleSheet(oren)
+        self.uutname.setFont(font)
+
+        self.loading = QProgressBar (self)
+        self.loading.setStyleSheet(prog)
+        self.loading.setFont(font)
+        
+        spasi = QSpacerItem(10, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.analize = QPushButton(self)
+        self.analize.setText("ANALYZE")
+        self.analize.setFont(font)
+        self.analize.setStyleSheet(oren)
+        self.analize.clicked.connect(self.cirt)
+
+        self.done = QPushButton(self)
+        self.done.setText("DONE")
+        self.done.setFont(font)
+        self.done.setStyleSheet(ijau)
+        #self.done.clicked.connect(self.cirt)
+
+        satu.addWidget(cl)
+        satu.addWidget(self.clientname)
+        satu.addWidget(mjdl)
+        satu.addWidget(self.mjdname)
+        satu.addWidget(self.kor)
+
+        satu.setStretchFactor(cl,1)
+        satu.setStretchFactor(self.clientname,2)
+        satu.setStretchFactor(mjdl,1)
+        satu.setStretchFactor(self.mjdname,2)
+        satu.setStretchFactor(self.kor,1)
+
+        dua.addWidget(utclabel)
+        dua.addWidget(uutlabel)
+
+        tiga.addWidget(self.utcname)
+        tiga.addWidget(self.uutname)
+
+        empat.addWidget(self.loading)
+        empat.addWidget(self.analize)
+        empat.addWidget(self.done)
+
+        run_layout = QVBoxLayout()
+        run_layout.addItem(spasi)
+        run_layout.addLayout(satu)
+        run_layout.addLayout(dua)
+        run_layout.addLayout(tiga)
+        run_layout.addLayout(empat)
+
+        return run_layout
+
+    # untuk output
+    def output (self):
+
+        alllabel = QLabel()
+        alllabel.setText("Allan Variance")
+        alllabel.setFont(font)
+
+        corrlabel = QLabel()
+        corrlabel.setText("Correction")
+        corrlabel.setFont(font)
+
+        outlabel = QLabel()
+        outlabel.setText("O U T P U T")
+        outlabel.setFont(font)
+
+        self.allan = QLineEdit(self)
+        self.correction = QLineEdit(self)
+        self.allan.setFont(font)
+        self.correction.setFont(font)
+        self.allan.setReadOnly(True)
+        self.correction.setReadOnly(True)
+
+        self.outputs = QTextEdit(self)
+        self.outputs.setFont(font)
+
+        self.delete = QPushButton(self)
+        self.delete.setText("Delete")
+        self.delete.setFont(font)
+        self.delete.setStyleSheet(oren)
+
+        self.uPsudorange = QPushButton(self)
+        self.uPsudorange.setText("uPsudorange")
+        self.uPsudorange.setFont(font)
+        self.uPsudorange.setStyleSheet(ijau)
+        self.uPsudorange.clicked.connect(self.uPseudorange)
+
+        spasi = QSpacerItem(60, 100, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        satu = QVBoxLayout()
+        dua = QVBoxLayout()
+        untukoutput = QHBoxLayout()
+
+        satu.addWidget(alllabel)
+        satu.addWidget(self.allan)
+        satu.addWidget(corrlabel)
+        satu.addWidget(self.correction)
+        satu.addWidget(self.delete)
+        satu.addWidget(self.uPsudorange)
+        satu.addItem(spasi)
+
+        dua.addWidget(outlabel)
+        dua.addWidget(self.outputs)
+
+        untukoutput.addLayout(satu)
+        untukoutput.addLayout(dua)
+
+        untukoutput.setStretchFactor(satu,1)
+        untukoutput.setStretchFactor(dua,5)
+
+        return untukoutput
+
+    # footer
+    def footer (self):
+        foot = QVBoxLayout()
+
+        spasi = QSpacerItem(30, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        kaki = QLabel()
+        kaki.setText("CGGTTS Analyzer for Cesium Atomic Clock Remote Calibration © SNSU Time and Frequency Laboratory 2024 ")
+
+        foot.addItem(spasi)
+        foot.addWidget(kaki)
+
+        return foot
+
+    #---------------------- uPseudorange
+    #GUI
+    def uPseudorange (self):
+        uPseudoBox = QDialog(self)
+        uPseudoBox.setWindowTitle("uPseudorange Calculator")
+
+        judul = QLabel(uPseudoBox)
+        judul.setText(" uPseudorange Calculator\t")
+        judul.setFont(font)
+        judul.setStyleSheet(f"{oren}; font-weight: Bold")
+
+        tutor = QLabel(uPseudoBox)
+        tutor.setText("Prepare a folder containing CGGTTS data for a full month in .txt format, with files named from 1 to 30/31")
+        tutor.setFont(font)
+        tutor.setStyleSheet(oren)
+
+        cfolder = QPushButton(uPseudoBox)
+        cfolder.setText("Choose Folder")
+        cfolder.setFont(font)
+        cfolder.setStyleSheet(oren)
+        cfolder.clicked.connect(self.showDialog)
+
+        self.foldir = QLineEdit(uPseudoBox)
+        self.foldir.setFont(font)
+        self.foldir.setReadOnly(True)
+
+        jumlahlabel = QLabel(uPseudoBox)
+        jumlahlabel.setText("Total Days")
+        jumlahlabel.setFont(font)
+
+        self.jumlah = QComboBox(uPseudoBox)
+        self.jumlah.addItems(["28","29","30","31"])
+        self.jumlah.setFont(font)
+        self.jumlah.setStyleSheet(oren)
+
+        cal = QPushButton(uPseudoBox)
+        cal.setText("Calculate")
+        cal.setFont(font)
+        cal.setStyleSheet(oren)
+        cal.clicked.connect(self.calUPseudo)
+
+        self.PseudoOutput = QLineEdit(uPseudoBox)
+        self.PseudoOutput.setFont(font)
+        self.PseudoOutput.setReadOnly(True)
+
+        snumber = QLabel(uPseudoBox)
+        snumber.setText("Sampling Number")
+        snumber.setFont(font)
+
+        self.samplingnumber = QLineEdit(uPseudoBox)
+        self.samplingnumber.setFont(font)
+
+        o = QLabel(uPseudoBox)
+        o.setText("|")
+        o.setFont(font)
+
+        slabel = QLabel(uPseudoBox)
+        slabel.setText("STDEV")
+        slabel.setFont(font)
+
+        ulabel = QLabel(uPseudoBox)
+        ulabel.setText("uPseudorange")
+        ulabel.setFont(font)
+
+        self.uPs = QLineEdit(uPseudoBox)
+        self.uPs.setFont(font)
+        self.uPs.setReadOnly(True)
+
+        spasi = QSpacerItem(30, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        kaki = QLabel(uPseudoBox)
+        kaki.setText("CGGTTS Analyzer for Cesium Atomic Clock Remote Calibration © SNSU Time and Frequency Laboratory 2024 ")
+        kaki.setFont(font)
+
+        satu = QHBoxLayout()
+        satu.addWidget(cfolder)
+        satu.addWidget(self.foldir)
+        satu.addWidget(jumlahlabel)
+        satu.addWidget(self.jumlah)
+        satu.setStretchFactor(cfolder,1)
+        satu.setStretchFactor(self.foldir,5)
+        satu.setStretchFactor(jumlahlabel,1)
+        satu.setStretchFactor(self.jumlah,1)
+
+        dua = QHBoxLayout()
+        dua.addWidget(cal)
+        dua.addWidget(snumber)
+        dua.addWidget(self.samplingnumber)
+        dua.addWidget(o)
+        dua.addWidget(slabel)
+        dua.addWidget(self.PseudoOutput)
+        dua.addWidget(ulabel)
+        dua.addWidget(self.uPs)
+
+        layout = QVBoxLayout(uPseudoBox)
+        layout.addWidget(judul)
+        layout.addItem(spasi)
+        layout.addWidget(tutor)
+        layout.addItem(spasi)
+        layout.addLayout(satu)
+        layout.addLayout(dua)
+        layout.addItem(spasi)
+        layout.addWidget(kaki)
+
+        uPseudoBox.exec_()
+
+    #----------Buka File
+    def showDialog(self):
+        # Buka dialog pemilihan folder
+        folder = QFileDialog.getExistingDirectory(self, 'Pilih Folder')
+
+        # Jika pengguna memilih folder, tampilkan alamat folder di QLineEdit
+        if folder:
+            self.foldir.setText(folder)
+
+    # ----------- Perhitungan
+    def calUPseudo(self):
+        
+        days = self.jumlah.currentText()
+        day = int(days)
+        self.workbook = Workbook()
+        worksheet = self.workbook.create_sheet(title=f" Data CGGTTS ")
+
+        stdev = []
+        try:
+            for a in range (day):
+                refgps = []
+                self.PseudoOutput.setText(f"Calculate {a+1} day")
+                #Read File
+                with open(f'{self.foldir.text()}/{a+1}.txt', 'r') as Filestd:
+                    # Baca semua baris kecuali baris pertama
+                    cggtts = Filestd.readlines()
+
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = cggtts[17].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+
+                # Loop melalui setiap baris file
+                for line in cggtts[19:]:  # Mulai dari baris kedelapan belas karena baris pertama adalah header
+                    data = line.strip().split()
+        
+                    # Pastikan jumlah elemen dalam baris sesuai dengan jumlah kolom yang diharapkan
+                    if len(data) >= max(std_indeks_kolom) + 1:
+
+                        # Masukkan ke dalam list yang sesuai
+                        if data[std_indeks_kolom[2]].isdigit() or data[std_indeks_kolom[2]].startswith("-") or data[std_indeks_kolom[2]].startswith("+"):
+                            refgps.append(data[std_indeks_kolom[2]])
+                        else:
+                            print("Skipping stdRefGPS non-numeric values\n")
+                #print(refgps)
+                refgps_array = np.array(refgps)
+                refgps_array = refgps_array.astype(int)
+
+                mean = np.mean(refgps_array)
+                stdev.append(mean)
+                self.PseudoOutput.setText(f"Average {a+1} day is : {mean}\n")
+
+                #print ("Transfering STD data to Excel File . . .\n")
+                cell = worksheet.cell(row=2,column=2+a)
+                cell.value = a+1
+
+                for i, item in enumerate(refgps, start=3):
+                    cell = worksheet.cell(row=i, column=2+a)
+                    cell.value = item
+
+            stdev = np.array(stdev)
+            standar_deviasi = np.std(stdev)
+            hasil = standar_deviasi/10
+            hasil=f"{hasil:.2f} ns"
+            self.PseudoOutput.setText(str(hasil))
+
+            akardua = np.sqrt(2)
+
+            sum = self.workbook.create_sheet(title=f" Data CGGTTS ")
+
+            cell = sum.cell (row=2, column=2)
+            cell.value = "Rata-Rata Setiap Bulan"
+
+            cell = sum.cell (row=2, column=4)
+            cell.value = "Standar Deviasi"
+            cell = sum.cell (row=2, column=5)
+            cell.value = standar_deviasi
+
+            for i, item in enumerate(stdev, start=3):
+                cell = sum.cell(row=i, column=2+a)
+                cell.value = item
+
+            namafile = f"uPseudorange.xlsx"
+            self.workbook.save(namafile)
+
+        except:
+            self.PseudoOutput.setText("Please Check Folder Content")
+
+
+        try:
+            samp = float(self.samplingnumber.text())
+            sd = float(standar_deviasi/10)
+            ya = sd/np.sqrt(samp)
+            ups = ya*akardua
+            self.uPs.setText(f"{ups:2f} ns")
+        except:
+            self.uPs.setText("Please input Sampling Number")
+
+    # -------------- Ini Mulai Fungsi Fungsi
+    # klik standard
+    def stand (self):
+        # Buka dialog pemilihan folder
+        folder = QFileDialog.getExistingDirectory(self, 'Pilih Folder')
+
+        # Jika pengguna memilih folder, tampilkan alamat folder di QLineEdit
+        if folder:
+            self.locStandar.setText(folder)
+        
+        self.utcname.clear()
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            if os.path.isfile(file_path):
+                self.utcname.addItem(filename)
+
+    # klik uut
+    def uuts (self):
+        # Buka dialog pemilihan folder
+        folder = QFileDialog.getExistingDirectory(self, 'Pilih Folder')
+
+        # Jika pengguna memilih folder, tampilkan alamat folder di QLineEdit
+        if folder:
+            self.locUUT.setText(folder)
+
+        self.uutname.clear()
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            if os.path.isfile(file_path):
+                self.uutname.addItem(filename)
+    
+    # klik output
+    def outputss (self):
+        # Buka dialog pemilihan folder
+        folder = QFileDialog.getExistingDirectory(self, 'Pilih Folder')
+
+        # Jika pengguna memilih folder, tampilkan alamat folder di QLineEdit
+        if folder:
+            self.locOutput.setText(folder)
+        
+# -------- DISINI PERHITUNGANNYA DIMULAI -----------------------------------------------
+
+    # koreksi connect ke BIPM
+    def find_numbers(self,n):
+        try:
+            if str(n).endswith('4') or str(n).endswith('9'):
+                r = requests.get(f"https://webtai.bipm.org/api/v0.2-beta/get-data.html?scale=utc&lab=IDN&outfile=txt&&mjd1={n}&mjd2={n}")
+                data = r.text.split('\n')
+                for line in data:
+                    if line and "UTC-UTC(IDN)(ns)" not in line:
+                        parts = line.split()  # Split the line into parts
+                        if len(parts) > 1:  # Ensure there are at least two parts
+                            try:
+                                value = float(parts[1])  # The value is at index 1
+                                hasil = str(value)
+                                self.kor.setText(hasil)
+                                #print(f"UTC-UTC(IDN) at {n} is : {value}")
+                            except ValueError:
+                                print("Error converting to float")
+
+            else:
+                before = n - 1
+                after = n + 1
+
+                while not (str(before).endswith('4') or str(before).endswith('9')):
+                    before -= 1
+
+                while not (str(after).endswith('4') or str(after).endswith('9')):
+                    after += 1
+
+                r = requests.get(f"https://webtai.bipm.org/api/v0.2-beta/get-data.html?scale=utc&lab=IDN&outfile=txt&&mjd1={before}&mjd2={after}")
+                data = r.text.split('\n')
+                values = []
+                for item in data:
+                    parts = item.split()
+                    if len(parts) == 2:
+                        try:
+                            value = float(parts[1])
+                            values.append(value)
+                        except ValueError:
+                            pass
+                            #print("Error converting to float")
+
+                if len(values) >= 2:
+                    kons = (values[1]-values[0])/5
+                    #print(kons)
+                    nilai = values[0]+kons*(n-before)
+                    hasil = str(nilai)
+                    self.kor.setText(hasil)
+                    #print(f"UTC - UTC(IDN) at {n} is {nilai}")
+                else:
+                    print("Not enough data found.")
+        except :
+            self.kor.setText("Not Found")
+
+    # BACA FILE TXT
+    def readprn (self, stdFile, Format):
+        Prn = []
+
+        with open(f'{stdFile}','r') as Filestd:
             stdLines = Filestd.readlines()
 
-        nama_kolom = ['PRN','STTIME','REFGPS']
-        header = stdLines[17].strip().split()
-        std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-
-        # Loop melalui setiap baris file
-        for line in stdLines[19:]:  # Mulai dari baris kedelapan belas karena baris pertama adalah header
-            data = line.strip().split()
-    
-            # Pastikan jumlah elemen dalam baris sesuai dengan jumlah kolom yang diharapkan
-            if len(data) >= max(std_indeks_kolom) + 1:
-                # Masukkan ke dalam list yang sesuai
-                if data[std_indeks_kolom[0]].isdigit():
-                    stdPrn.append(data[std_indeks_kolom[0]])
-                else:
-                    print("Skipping stdprn non-numeric values\n")
-
-                if data[std_indeks_kolom[1]].isdigit():
-                    stdSttime.append(data[std_indeks_kolom[1]])
-                else:
-                    print("Skipping stdSttime non-numeric values\n")
-
-                if data[std_indeks_kolom[2]].isdigit() or data[std_indeks_kolom[2]].startswith("-"):
-                    stdRefGPS.append(data[std_indeks_kolom[2]])
-                else:
-                    print("Skipping stdRefGPS non-numeric values\n")
-
-        print ("Transfering STD data to Excel File . . .\n")
-        cell = worksheet.cell(row=2,column=2)
-        cell.value = "STD Data Unsorted"
-
-        cell = worksheet.cell(row=3,column=2)
-        cell.value = "STD PRN"
-        for i, item in enumerate(stdPrn, start=4):
-            cell = worksheet.cell(row=i, column=2)
-            cell.value = item
-
-        cell = worksheet.cell(row=3,column=3)
-        cell.value = "STD STTIME"
-        for i, item in enumerate(stdSttime, start=4):
-            cell = worksheet.cell(row=i, column=3)
-            cell.value = item
-
-        cell = worksheet.cell(row=3,column=4)
-        cell.value = "STD REFGPS"
-        for i, item in enumerate(stdRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=4)
-            cell.value = item
-
-# ---------- Baca dan print ke excel data UUT
-
-        #Buka UUT File
-        with open(f'{uutFile}.txt', 'r') as Fileuut:
-        # Baca semua baris kecuali baris pertama
-            uutLines = Fileuut.readlines()
-
-        if uutFormat == "2E":
-            nama_kolom = ['SAT','STTIME','REFSYS']
-            header = uutLines[16].strip().split()
-            uut_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+        if Format == "2E":
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[16].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("16 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[17].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("17 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[18].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("18 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[19].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("19 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[20].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("20 not found")
         else:
             nama_kolom = ['PRN','STTIME','REFGPS']
-            header = uutLines[17].strip().split()
-            uut_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-
-        # Loop melalui setiap baris file
-        for line in uutLines[19:]:  # Mulai dari baris kedelapan belas karena baris pertama adalah header
+            header = stdLines[17].strip().split()
+            std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+        
+        for line in stdLines[19:]:
             data = line.strip().split()
-    
-            # Pastikan jumlah elemen dalam baris sesuai dengan jumlah kolom yang diharapkan
-            if len(data) >= max(uut_indeks_kolom) + 1:
-                # Masukkan ke dalam list yang sesuai
-                if uutFormat == "2E":
-                    uutPrn.append(data[uut_indeks_kolom[0]])
+            if len(data) >= max(std_indeks_kolom) + 1:
+                if Format == "2E":
+                    Prn.append(data[std_indeks_kolom[0]])
                 else:
-                    if data[uut_indeks_kolom[0]].isdigit():
-                        uutPrn.append(data[uut_indeks_kolom[0]])
+                    if data[std_indeks_kolom[0]].isdigit():
+                        Prn.append(data[std_indeks_kolom[0]])
                     else:
-                        print("Skipping uutPRN non-numeric values\n")
-                if data[uut_indeks_kolom[1]].isdigit():
-                    uutSttime.append(data[uut_indeks_kolom[1]])
-                else:
-                    print("Skipping uutSttime non-numeric values\n")
-                if data[uut_indeks_kolom[2]].isdigit() or data[uut_indeks_kolom[2]].startswith("-") or data[uut_indeks_kolom[2]].startswith("+"):
-                    uutRefGPS.append(data[uut_indeks_kolom[2]])
-                else:
-                    print("Skipping uutRefGPS non-numeric values\n")
-        print(uutPrn)
+                        print("Skipping stdprn non-numerical values")
+        
 
-    # HAPUSIN HURUF DEPAN
-        if uutFormat == "2E":
+        # HAPUSIN HURUF DEPAN
+        if Format == "2E":
             bersih =[]
-            for item in uutPrn:
+            for item in Prn:
                 if item[0].isdigit():
                     bersih.append(item)
                 else:
                     bersih.append(item[1:])
-        print(bersih)
-        uutPrn = []
+            #print(bersih)
+            Prn = []
 
-        for i, item in enumerate(bersih):
-            uutPrn.append(bersih[i])
-
-# - - - - - transfering data to excel
-        print ("Transfering UUT data to Excel File . . .\n")
-        cell = worksheet.cell(row=2,column=6)
-        cell.value = "UUT Data Unsorted"
-
-        cell = worksheet.cell(row=3,column=6)
-        cell.value = "UUT PRN"
-        for i, item in enumerate(uutPrn, start=4):
-            cell = worksheet.cell(row=i, column=6)
-            cell.value = item
-
-        cell = worksheet.cell(row=3,column=7)
-        cell.value = "UUT STTIME"
-        for i, item in enumerate(uutSttime, start=4):
-            cell = worksheet.cell(row=i, column=7)
-            cell.value = item
-
-        cell = worksheet.cell(row=3,column=8)
-        cell.value = "UUT REFGPS"
-        for i, item in enumerate(uutRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=8)
-            cell.value = item
-
-# - - - - - - - - - - - -  std  prn
-        print ("Calculating Reference Value . . . \n")
-        for i in range(len(stdPrn)):
-            stdRefVal.append(int(stdPrn[i]) * int(stdSttime[i]))
-
-        for i in range (len(uutPrn)):
-            uutRefVal.append(int(uutPrn[i]) * int(uutSttime[i]))
-
-        cell = worksheet.cell(row=2,column=10)
-        cell.value = "Reference Value"
-        cell = worksheet.cell(row=3,column=10)
-        cell.value = "STD"
-        for i, item in enumerate(stdRefVal, start=4):
-            cell = worksheet.cell(row=i, column=10)
-            cell.value = item
-        cell = worksheet.cell(row=3,column=11)
-        cell.value = "UUT"
-        for i, item in enumerate(uutRefVal, start=4):
-            cell = worksheet.cell(row=i, column=11)
-            cell.value = item
-
-# - - - - - - - Sorting Data 
-        print("Sorting Data . . . . .\n")
-        # Gabungkan stdRefVal dan stdRefGPS bersama-sama
-        combined_std = list(zip(stdRefVal, stdRefGPS))
-        combined_uut = list(zip(uutRefVal, uutRefGPS))
-
-        # Urutkan berdasarkan stdRefVal
-        sorted_combined_data_std = sorted(combined_std, key=lambda x: x[0])
-        sorted_combined_data_uut = sorted(combined_uut, key=lambda x: x[0])
-
-        # Pisahkan kembali sortedStdRefVal dan sortedStdRefGPS
-        sortedStdRefVal = [data[0] for data in sorted_combined_data_std]
-        sortedStdRefGPS = [data[1] for data in sorted_combined_data_std]
-        sortedUutRefVal = [data[0] for data in sorted_combined_data_uut]
-        sortedUutRefGPS = [data[1] for data in sorted_combined_data_uut]
-
-        cell = worksheet.cell(row=2,column=13)
-        cell.value = "Sorted Value"
-
-        cell = worksheet.cell(row=3,column=13)
-        cell.value = "STD Ref Val"
-        for i, item in enumerate(sortedStdRefVal, start=4):
-            cell = worksheet.cell(row=i, column=13)
-            cell.value = item
-        cell = worksheet.cell(row=3,column=14)
-        cell.value = "STD RefGPS"
-        for i, item in enumerate(sortedStdRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=14)
-            cell.value = item
-
-        cell = worksheet.cell(row=3,column=15)
-        cell.value = "UUT Ref Val"
-        for i, item in enumerate(sortedUutRefVal, start=4):
-            cell = worksheet.cell(row=i, column=15)
-            cell.value = item
-        cell = worksheet.cell(row=3,column=16)
-        cell.value = "UUT RefGPS"
-        for i, item in enumerate(sortedUutRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=16)
-            cell.value = item
-# - - - - - - - - Matching Data
-            
-        print("Matching Data . . .\n")
-
-        for a in sortedStdRefVal:
-            for b in sortedUutRefVal:
-                res = a/b
-                if res == 1:
-                    indexa = sortedStdRefVal.index(a)
-                    indexb = sortedUutRefVal.index(b)
-                    CstdRefVal.append(sortedStdRefVal[indexa])
-                    CstdRefGPS.append(sortedStdRefGPS[indexa])
-                    CuutRefVal.append(sortedUutRefVal[indexb])
-                    CuutRefGPS.append(sortedUutRefGPS[indexb])
-                    break
-                else:
-                    pass
-
-        #print to excel
-        cell = worksheet.cell(row=2,column=18)
-        cell.value = "MATCH DATA"
-
-        cell = worksheet.cell(row=3,column=18)
-        cell.value = "STD REF VAL"
-
-        for i, item in enumerate(CstdRefVal, start=4):
-            cell = worksheet.cell(row=i, column=18)
-            cell.value = item
+            for i, item in enumerate(bersih):
+                Prn.append(bersih[i])
         
-        cell = worksheet.cell(row=3,column=19)
-        cell.value = "STD RefGPS"
-        for i, item in enumerate(CstdRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=19)
-            cell.value = item
-        cell = worksheet.cell(row=3,column=19)
-        cell.value = "STD RefGPS"
-        for i, item in enumerate(CstdRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=19)
-            cell.value = item
+        return Prn
 
-        cell = worksheet.cell(row=3,column=21)
-        cell.value = "UUT REF VAL"
-        for i, item in enumerate(CuutRefVal, start=4):
-            cell = worksheet.cell(row=i, column=21)
-            cell.value = item
-        cell = worksheet.cell(row=3,column=22)
-        cell.value = "UUT REFGPS"
-        for i, item in enumerate(CuutRefGPS, start=4):
-            cell = worksheet.cell(row=i, column=22)
-            cell.value = item
+    def readsttime (self, stdFile, Format):
+        Sttime = []
 
-# calculating differences
-        print("Calculating Differences . . .\n")
+        with open(f'{stdFile}','r') as Filestd:
+            stdLines = Filestd.readlines()
 
-        for i in range (len(CstdRefGPS)):
+        if Format == "2E":
             try:
-                difValue.append(int(CstdRefGPS[i])-int(CuutRefGPS[i]))
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[16].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
             except:
-                print("")
+                print("16 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[17].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("17 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[18].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("18 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[19].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("19 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[20].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("20 not found")
+
+        else:
+            nama_kolom = ['PRN','STTIME','REFGPS']
+            header = stdLines[17].strip().split()
+            std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+
+        for line in stdLines[19:]:
+            data = line.strip().split()
+            if len(data) >= max(std_indeks_kolom) + 1:
+                if data[std_indeks_kolom[1]].isdigit():
+                    Sttime.append(data[std_indeks_kolom[1]])
+                else:
+                    print("Skipping stdttime non-numeric values")
+        return Sttime
+
+    def readRefGPS (self, stdFile, Format):  
+        RefGPS = []
+
+        with open(f'{stdFile}','r') as Filestd:
+            stdLines = Filestd.readlines()
+
+        if Format == "2E":
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[16].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("16 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[17].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("17 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[18].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("18 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[19].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("19 not found")
+            try:
+                nama_kolom = ['SAT','STTIME','REFSYS']
+                header = stdLines[20].strip().split()
+                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+            except:
+                print("20 not found")
+
+        else:
+            nama_kolom = ['PRN','STTIME','REFGPS']
+            header = stdLines[17].strip().split()
+            std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
+
+        for line in stdLines[19:]:
+            data = line.strip().split()
+
+            if len(data) >= max(std_indeks_kolom) + 1:           
+                
+                if data[std_indeks_kolom[2]].isdigit() or data[std_indeks_kolom[2]].startswith("-") or data[std_indeks_kolom[2]].startswith("+"):
+                    RefGPS.append(data[std_indeks_kolom[2]])
+                else:
+                    print("Skipping stdRefGPS non-numeric values\n")
+
+        return RefGPS
+
+    def excel (self, posisi, data):
+
+        for i, item in enumerate (data,start=4):
+            cell = self.worksheet.cell(row=i, column=posisi)
+            cell.value=item
+
+        excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
+        self.workbook.save(excelFile)
+
         
+    # Dimulai disini
+    # 1. Request data circular-T dulu
+    def cirt (self):
 
-        cell = worksheet.cell(row=3,column=24)
-        cell.value = "STD - DUT"
-        for i, item in enumerate(difValue, start=4):
-            cell = worksheet.cell(row=i, column=24)
-            cell.value = item
+        self.workbook = Workbook()
+        self.worksheet = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
+        header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT","","AVERAGE"]
+        header2 = ["PRN","PRN COR","STTIME","REFGPS","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
+
+        for i, item in enumerate (header1,start=2):
+            cell = self.worksheet.cell(row=2, column=i)
+            cell.value=item
+
+        for i, item in enumerate (header2,start=2):
+            cell = self.worksheet.cell(row=3, column=i)
+            cell.value=item
+
+        try:
+            self.find_numbers(int(self.mjdname.text()))
+            self.loading.setValue(5)
+            time.sleep(5)
+            excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
+            self.workbook.save(excelFile)
+            self.loading.setValue(10)
+        except:
+            self.kor.setText("ERROR")
+
+        self.read()
+
+    # 2. Read data txt
+    def read (self):
+        try:
+            stdfile = f"{self.locStandar.text()}/{self.utcname.currentText()}"
+            stdformats = self.tipeStandar.currentText()
+
+            uutfile = f"{self.locUUT.text()}/{self.uutname.currentText()}"
+            uutformats = self.tipeUUT.currentText()
+            
+            print(stdfile)
+            print(uutfile)
+        except:
+            self.kor.setText("Nama File")
+
+        self.stdPrn = self.readprn(stdfile,stdformats)
+        self.stdSttime= self.readsttime(stdfile,stdformats)
+        self.stdRefGPS = self.readRefGPS(stdfile,stdformats)
+
+        self.uutPrn = self.readprn(uutfile, uutformats)
+        self.uutSttime = self.readsttime(uutfile, uutformats)
+        self.uutRefGPS = self.readRefGPS(uutfile, uutformats)
         
-        print("Calculating Average . . .\n")
+        self.loading.setValue(15)
 
-        average = np.mean (difValue)
-        cell = worksheet.cell(row=2,column=26)
-        cell.value = "Average :"
-        cell = worksheet.cell(row=3,column=26)
-        cell.value = average
+        print(self.stdPrn)
 
-        print(f"The Average Difference UTC(IDN) and {client_name} at {mjd} is {average}\n")
+        self.excel(2,self.stdPrn)
+        self.excel(4,self.stdSttime)
+        self.excel(5,self.stdRefGPS)
 
-        print("Show and Save Graph :\n")
+        self.excel(7,self.uutPrn)
+        self.excel(8,self.uutSttime)
+        self.excel(9,self.uutRefGPS)
 
-        # Membuat plot
-        plt.plot(difValue)
+        self.loading.setValue(20)
 
-        # Menambahkan judul dan label sumbu
-        plt.title(f'The Difference Graph UTC(IDN) and {client_name} at {mjd}')
-        plt.xlabel('Time')
-        plt.ylabel(f'UTC(IDN) - {client_name}')
+    # 3. Koreksi dengan data circular-T
+    def koreksi(self):
+        pass
+    # 4. Bikin Ref
+    def ref(self):
+        pass
+    # 5. Sorting
+    def sorting (self):
+        pass
+    # 6. Match
+    def matched (self):
+        pass
+    # 7. hitung selisih
+    def selisih (self):
+        pass
+    # 8. kesimpulan
+    def conclusion (self):
+        pass
 
-        plt.show()
+    # semuanya
+    def initUI(self):
+        self.setWindowTitle(' Time and Frequency Standard Remote Calibration ')
 
-        # Menyimpan plot ke dalam komputer
-        plt.savefig(f'{client_name} - {mjd}.png')
+        header_layout = self.header()
+        input_layout = self.input()
+        run_layout = self.run()
+        output_layout = self.output()
+        footer_layout = self.footer()
 
-        print("Calculating Done\n")
+        self.layoututama = QVBoxLayout(self)
+        self.layoututama.addLayout(header_layout)
+        self.layoututama.addLayout(input_layout)
+        self.layoututama.addLayout(run_layout)
+        self.layoututama.addLayout(output_layout)
+        self.layoututama.addLayout(footer_layout)
 
-        print("Saving to Excel . . . .\n")
+        self.setLayout(self.layoututama)
 
-        # simpan excel
-        excelFile = f"{client_name}.xlsx"
-        
-        workbook.save(excelFile)
-        print(f"Data Saved in {client_name}.xlsx in sheet {mjd}\n")
+        self.show ()
 
-        # jumlahkan mjd dan average
-        mjds.append(mjd)
-        averages.append(average)
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = jendelautama()
 
-        # Menutup sesi MJD
-        mjdNext = input ("Calculate next MJD (y/n)\t:")
-        if mjdNext == "n":
-            break
-
-    # save rekapan
-    worksheet = workbook.create_sheet(title=f" {client_name} ")
-
-    cell = worksheet.cell(row=2,column=2)
-    cell.value = "MJD vs Average"
-
-    cell = worksheet.cell(row=3,column=2)
-    cell.value = "MJD"
-    cell = worksheet.cell(row=3,column=3)
-    cell.value = "Average"
-
-    for i, item in enumerate(mjds, start=4):
-        cell = worksheet.cell(row=i, column=2)
-        cell.value = item
-    for i, item in enumerate(averages, start=4):
-        cell = worksheet.cell(row=i, column=3)
-        cell.value = item
-    workbook.save(excelFile)
-
-
-    # Menutup sesi Client
-    clientNext = input ("Calculate next Client (y/n)\t:")
-    if clientNext == "n":
-        break
-
-# tampilkan data rekapan
-rekap = input("Display Calculating Summary (y/n)?")
-
-if rekap == "y":
-    # Plot
-    plots = plt
-    plots.plot(mjds, averages, marker='o', linestyle='-')
-
-    # Label sumbu x dan sumbu y
-    plots.xlabel('MJD')
-    plots.ylabel('Average')
-
-    # Judul plot
-    plots.title(f"UTC(IDN) vs {client_name}")
-
-    # Menampilkan grid
-    plots.grid(True)
-
-    # Menampilkan plot
-    plots.show()
-    plots.savefig(f'{client_name}.png')
-
-print ("Thank you and See you in the next Remote Calibration")
+    sys.exit(app.exec_())
