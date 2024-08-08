@@ -9,8 +9,7 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 05-08-2024 22:17 UTC(IDN)
-
+# Updated 08-08-2024 22:41 UTC(IDN)
 
 '''
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
@@ -53,10 +52,10 @@ prog = "QProgressBar { border-radius :8px ; text-align: center; background-color
 
 # -------- -------- Font
 font = QFont("Inter",10)
-font = QFont("Inter",10)
 
 # global variabel
 sum = []
+mjd = []
 
 
 # Class
@@ -247,7 +246,7 @@ class jendelautama(QWidget):
         self.done.setText("DONE")
         self.done.setFont(font)
         self.done.setStyleSheet(ijau)
-        #self.done.clicked.connect(self.cirt)
+        self.done.clicked.connect(self.selesai)
 
         satu.addWidget(cl)
         satu.addWidget(self.clientname)
@@ -309,6 +308,7 @@ class jendelautama(QWidget):
         self.delete.setText("Delete")
         self.delete.setFont(font)
         self.delete.setStyleSheet(oren)
+        self.delete.clicked.connect(self.hapus)
 
         self.uPsudorange = QPushButton(self)
         self.uPsudorange.setText("uPsudorange")
@@ -847,7 +847,7 @@ class jendelautama(QWidget):
                 pass
         return ini
     
-    def allan_variance(data, tau=1):
+    def allan_variance(self,data, tau=1):
         """
         Menghitung Allan Variance dari data list.
 
@@ -858,49 +858,89 @@ class jendelautama(QWidget):
         Returns:
         float: Allan Variance dari data.
         """
-        n = len(data)
-        if n < 2 * tau:
-            raise ValueError("Data tidak cukup untuk menghitung Allan Variance dengan nilai tau yang diberikan.")
+        try:
+            n = len(data)
+            if n < 2 * tau:
+                raise ValueError("Data tidak cukup untuk menghitung Allan Variance dengan nilai tau yang diberikan.")
 
-        # Membuat list rata-rata per grup
-        group_means = [np.mean(data[i:i+tau]) for i in range(0, n - tau, tau)]
-    
-        # Menghitung Allan Variance
-        squared_diffs = [(group_means[i+1] - group_means[i])**2 for i in range(len(group_means) - 1)]
-    
-        allan_var = 0.5 * np.mean(squared_diffs)
+            # Membuat list rata-rata per grup
+            group_means = [np.mean(data[i:i+tau]) for i in range(0, n - tau, tau)]
+        
+            # Menghitung Allan Variance
+            squared_diffs = [(group_means[i+1] - group_means[i])**2 for i in range(len(group_means) - 1)]
+        
+            allan_var = 0.5 * np.mean(squared_diffs)
+        except:
+            allan_var="0"
     
         return allan_var
     
+    def show_warning(self, pesan):
+        # Membuat jendela peringatan
+        warning = QMessageBox()
+        warning.setIcon(QMessageBox.Warning)
+        warning.setWindowTitle('Peringatan')
+        warning.setText(pesan)
+        
+        warning.exec_()
+
     # Dimulai disini
     # 1. Request data circular-T dulu
     def cirt (self):
+        
+        a = self.dirStandar.text()
+        b = self.dirUUT.text()
+        c = self.dirOutput.text()
+        d = self.clientname.text()
+        e = self.mjdname.text()
+        f = self.utcname.currentText()
+        g = self.uutname.currentText()
 
-        self.workbook = Workbook()
-        self.worksheet = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
-        header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT","","AVERAGE"]
-        header2 = ["PRN","STTIME","REFGPS","REFGPS COR","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
+        if a == "":
+            self.show_warning("Anda Belum Memilih Directory Folder Standard")
+        elif b =="":
+            self.show_warning("Anda Belum Memilih Directory Folder UUT")
+        elif c =="":
+            self.show_warning("Anda Belum Memilih Directory Folder Output")
+        elif d =="":
+            self.show_warning("Anda Belum Mengisi Nama Client")
+        elif e =="":
+            self.show_warning("Anda Belum Mengisi Tanggal MJD")
+        elif not f.endswith('.txt'):
+            self.show_warning("File Standard yang dipilih bukan berformat .txt")
+        elif not g.endswith('.txt'):
+            self.show_warning("File UUT yang dipilih bukan berformat .txt")
+        else:
+            try:
+                time.sleep(1)
+                self.loading.setValue(7)
+                self.workbook = Workbook()
+                self.worksheet = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
+                header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT"]
+                header2 = ["PRN","STTIME","REFGPS","REFGPS COR","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
 
-        for i, item in enumerate (header1,start=2):
-            cell = self.worksheet.cell(row=2, column=i)
-            cell.value=item
+                for i, item in enumerate (header1,start=2):
+                    cell = self.worksheet.cell(row=2, column=i)
+                    cell.value=item
 
-        for i, item in enumerate (header2,start=2):
-            cell = self.worksheet.cell(row=3, column=i)
-            cell.value=item
+                for i, item in enumerate (header2,start=2):
+                    cell = self.worksheet.cell(row=3, column=i)
+                    cell.value=item
+                try:
+                    self.find_numbers(int(self.mjdname.text()))
+                    self.loading.setValue(14)
+                    time.sleep(5)
+                    excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
+                    self.workbook.save(excelFile)
+                    time.sleep(1)
+                    self.loading.setValue(21)
+                    self.read()
 
-        try:
-            self.find_numbers(int(self.mjdname.text()))
-            self.loading.setValue(5)
-            time.sleep(5)
-            excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
-            self.workbook.save(excelFile)
-            time.sleep(1)
-            self.loading.setValue(10)
-        except:
-            self.kor.setText("ERROR")
+                except:
+                    self.show_warning("Tanggal MJD Salah")
 
-        self.read()
+            except:
+                self.show_warning("Cek File Excel")
 
     # 2. Read data txt
     def read (self):
@@ -914,7 +954,7 @@ class jendelautama(QWidget):
             print(stdfile)
             print(uutfile)
         except:
-            self.kor.setText("Nama File")
+            self.show_warning("Error saat membaca file txt")
 
         self.stdPrn = self.readprn(stdfile,stdformats)
         self.stdSttime= self.readsttime(stdfile,stdformats)
@@ -925,7 +965,7 @@ class jendelautama(QWidget):
         self.uutRefGPS = self.readRefGPS(uutfile, uutformats)
         
         time.sleep(1)
-        self.loading.setValue(15)
+        self.loading.setValue(28)
 
         #print(self.stdPrn)
 
@@ -938,7 +978,7 @@ class jendelautama(QWidget):
         self.excel(9,self.uutRefGPS)
 
         time.sleep(1)
-        self.loading.setValue(20)
+        self.loading.setValue(35)
 
         self.koreksi()
 
@@ -950,7 +990,7 @@ class jendelautama(QWidget):
 
         self.excel(5, self.stdcorrefgps)
         time.sleep(1)
-        self.loading.setValue(25)
+        self.loading.setValue(42)
 
         self.ref()
 
@@ -967,13 +1007,13 @@ class jendelautama(QWidget):
         self.uutRefVal = list(map(lambda x , y: x * y, c,d))
 
         time.sleep(1)
-        self.loading.setValue(30)
+        self.loading.setValue(49)
 
         self.excel (11, self.stdRefVal)
         self.excel (12, self.uutRefVal)
 
         time.sleep(1)
-        self.loading.setValue(35)
+        self.loading.setValue(56)
 
         self.sorting()
 
@@ -995,7 +1035,7 @@ class jendelautama(QWidget):
         self.sort_uut_refval = self.cek(sort_uut_refval)
 
         time.sleep(1)
-        self.loading.setValue(40)
+        self.loading.setValue(63)
 
         self.excel(14,self.sort_std_refval)
         self.excel(15,self.sort_std_refgps)
@@ -1004,7 +1044,7 @@ class jendelautama(QWidget):
         self.excel(17,self.sort_uut_refgps)
 
         time.sleep(1)
-        self.loading.setValue(45)
+        self.loading.setValue(70)
 
         self.matched()
 
@@ -1029,7 +1069,7 @@ class jendelautama(QWidget):
                     pass
 
         time.sleep(1)
-        self.loading.setValue(50)
+        self.loading.setValue(77)
 
         self.excel(19, self.cstdv)
         self.excel(20, self.cstdg)
@@ -1037,7 +1077,9 @@ class jendelautama(QWidget):
         self.excel(22, self.cuutg)
 
         time.sleep(1)
-        self.loading.setValue(55)
+        self.loading.setValue(84)
+
+        self.selisih()
 
     # 7. hitung selisih
     def selisih (self):
@@ -1049,28 +1091,76 @@ class jendelautama(QWidget):
                 print("")
 
         time.sleep(1)
-        self.loading.setValue(55)
+        self.loading.setValue(91)
+
+        self.excel(24,self.beda)
 
         self.conclusion()
 
     # 8. kesimpulan
     def conclusion (self):
         selisih = np.array(self.beda)
-        beda = np.mean(selisih)
+        sel = float(np.mean(selisih))
+        beda = f"{sel:.2f}"
+        self.correction.setText(beda)
 
         time.sleep(1)
-        self.loading.setValue(60)
+        self.loading.setValue(98)
 
         # masukkan ke rangkuman per hari
-        sum.append(beda)
+        sum.append(sel)
+        mjd.append(self.mjdname.text())
         # tampilkan ke output
         self.outputs.append(f"Rata-rata selisih pada tanggal {self.mjdname.text()} adalah {beda}")
         time.sleep(1)
-        self.loading.setValue(65)
-        allan = self.allan_variance(sum,1)
+        self.loading.setValue(99)
+        allan = self.allan_variance(sum)
         self.allan.setText(allan)
         time.sleep(1)
         self.loading.setValue(100)
+
+    # 9. Done
+    def selesai (self):
+        summary = self.workbook.create_sheet(title=f" Summary ")
+
+        for i, item in enumerate (mjd,start=4):
+            summary = self.worksheet.cell(row=i, column=2)
+            summary.value=item
+
+        for i, item in enumerate (sum,start=4):
+            summary = self.worksheet.cell(row=i, column=3)
+            summary.value=item
+
+        allan = self.allan_variance(sum)
+        cell = summary.cell(row=5,column=5)
+        cell.value = allan
+
+        selisih = np.array(self.beda)
+        sel = float(np.mean(selisih))
+        beda = f"{sel:.2f}"
+        self.correction.setText(beda)
+        cell = summary.cell(row=5,column=6)
+        cell.value = beda
+
+        cell = summary.cell(row=4,column=5)
+        cell.value = "Allan"
+        cell = summary.cell(row=4,column=6)
+        cell.value = "Average"
+
+        excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
+        self.workbook.save(excelFile)
+    
+    # 10. Hapus
+    def hapus (self):
+        sum.pop()
+        mjd.pop()
+
+        allan = self.allan_variance(sum)
+        selisih = np.array(self.beda)
+        sel = float(np.mean(selisih))
+        beda = f"{sel:.2f}"
+        self.correction.setText(beda)
+        self.allan.setText(allan)
 
     # semuanya
     def initUI(self):
