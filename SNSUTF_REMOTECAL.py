@@ -16,7 +16,7 @@
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
 CGGTTS ANALYZER
 GUI--
-UPDATE 05/08/2024
+UPDATE 08/08/2024
 '''
 
 # -------- Libraries
@@ -54,6 +54,10 @@ prog = "QProgressBar { border-radius :8px ; text-align: center; background-color
 # -------- -------- Font
 font = QFont("Inter",10)
 font = QFont("Inter",10)
+
+# global variabel
+sum = []
+
 
 # Class
 class jendelautama(QWidget):
@@ -834,7 +838,40 @@ class jendelautama(QWidget):
         excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
         self.workbook.save(excelFile)
 
-        
+    def cek (self, ini):
+        for a in range(len(ini) - 1):
+            if ini[a] == ini[a-1]:
+                
+                ini[a] += 1
+            else:
+                pass
+        return ini
+    
+    def allan_variance(data, tau=1):
+        """
+        Menghitung Allan Variance dari data list.
+
+        Parameters:
+        data (list atau array): List atau array yang berisi data numerik.
+        tau (int): Interval waktu (atau ukuran grup) yang digunakan untuk menghitung Allan Variance. Default-nya adalah 1.
+
+        Returns:
+        float: Allan Variance dari data.
+        """
+        n = len(data)
+        if n < 2 * tau:
+            raise ValueError("Data tidak cukup untuk menghitung Allan Variance dengan nilai tau yang diberikan.")
+
+        # Membuat list rata-rata per grup
+        group_means = [np.mean(data[i:i+tau]) for i in range(0, n - tau, tau)]
+    
+        # Menghitung Allan Variance
+        squared_diffs = [(group_means[i+1] - group_means[i])**2 for i in range(len(group_means) - 1)]
+    
+        allan_var = 0.5 * np.mean(squared_diffs)
+    
+        return allan_var
+    
     # Dimulai disini
     # 1. Request data circular-T dulu
     def cirt (self):
@@ -842,7 +879,7 @@ class jendelautama(QWidget):
         self.workbook = Workbook()
         self.worksheet = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
         header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT","","AVERAGE"]
-        header2 = ["PRN","PRN COR","STTIME","REFGPS","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
+        header2 = ["PRN","STTIME","REFGPS","REFGPS COR","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
 
         for i, item in enumerate (header1,start=2):
             cell = self.worksheet.cell(row=2, column=i)
@@ -858,6 +895,7 @@ class jendelautama(QWidget):
             time.sleep(5)
             excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
             self.workbook.save(excelFile)
+            time.sleep(1)
             self.loading.setValue(10)
         except:
             self.kor.setText("ERROR")
@@ -886,38 +924,153 @@ class jendelautama(QWidget):
         self.uutSttime = self.readsttime(uutfile, uutformats)
         self.uutRefGPS = self.readRefGPS(uutfile, uutformats)
         
+        time.sleep(1)
         self.loading.setValue(15)
 
-        print(self.stdPrn)
+        #print(self.stdPrn)
 
         self.excel(2,self.stdPrn)
-        self.excel(4,self.stdSttime)
-        self.excel(5,self.stdRefGPS)
+        self.excel(3,self.stdSttime)
+        self.excel(4,self.stdRefGPS)
 
         self.excel(7,self.uutPrn)
         self.excel(8,self.uutSttime)
         self.excel(9,self.uutRefGPS)
 
+        time.sleep(1)
         self.loading.setValue(20)
+
+        self.koreksi()
 
     # 3. Koreksi dengan data circular-T
     def koreksi(self):
-        pass
+        korek = float(self.kor.text())
+        oke = [float(x) for x in self.stdRefGPS]
+        self.stdcorrefgps = list(map(lambda x: x - korek, oke))
+
+        self.excel(5, self.stdcorrefgps)
+        time.sleep(1)
+        self.loading.setValue(25)
+
+        self.ref()
+
     # 4. Bikin Ref
     def ref(self):
-        pass
+        a = [float(x) for x in self.stdPrn]
+        b = [float(x) for x in self.stdSttime]
+
+        self.stdRefVal = list(map(lambda x , y: x * y, a,b))
+
+        c = [float(x) for x in self.uutPrn]
+        d = [float(x) for x in self.uutSttime]
+
+        self.uutRefVal = list(map(lambda x , y: x * y, c,d))
+
+        time.sleep(1)
+        self.loading.setValue(30)
+
+        self.excel (11, self.stdRefVal)
+        self.excel (12, self.uutRefVal)
+
+        time.sleep(1)
+        self.loading.setValue(35)
+
+        self.sorting()
+
     # 5. Sorting
     def sorting (self):
-        pass
+        std = list(zip(self.stdRefVal, self.stdcorrefgps))
+        uut = list(zip(self.uutRefVal, self.uutRefGPS))
+
+        sort_std = sorted(std, key=lambda x: x[0])
+        sort_uut = sorted(uut, key=lambda x: x[0])
+
+        sort_std_refval = [data[0] for data in sort_std]
+        self.sort_std_refgps = [data[1] for data in sort_std]
+
+        sort_uut_refval = [data[0] for data in sort_uut]
+        self.sort_uut_refgps = [data[1] for data in sort_uut]
+
+        self.sort_std_refval = self.cek(sort_std_refval)
+        self.sort_uut_refval = self.cek(sort_uut_refval)
+
+        time.sleep(1)
+        self.loading.setValue(40)
+
+        self.excel(14,self.sort_std_refval)
+        self.excel(15,self.sort_std_refgps)
+
+        self.excel(16,sort_uut_refval)
+        self.excel(17,self.sort_uut_refgps)
+
+        time.sleep(1)
+        self.loading.setValue(45)
+
+        self.matched()
+
     # 6. Match
     def matched (self):
-        pass
+        self.cstdv = []
+        self.cstdg = []
+        self.cuutv = []
+        self.cuutg = []
+        for a in self.sort_std_refval:
+            for b in self.sort_uut_refval:
+                res = a/b
+                if res == 1:
+                        indexa = self.sort_std_refval.index(a)
+                        indexb = self.sort_uut_refval.index(b)
+                        self.cstdv.append(self.sort_std_refval[indexa])
+                        self.cstdg.append(self.sort_std_refgps[indexa])
+                        self.cuutv.append(self.sort_uut_refval[indexb])
+                        self.cuutg.append(self.sort_uut_refgps[indexb])
+                        break
+                else:
+                    pass
+
+        time.sleep(1)
+        self.loading.setValue(50)
+
+        self.excel(19, self.cstdv)
+        self.excel(20, self.cstdg)
+        self.excel(21, self.cuutv)
+        self.excel(22, self.cuutg)
+
+        time.sleep(1)
+        self.loading.setValue(55)
+
     # 7. hitung selisih
     def selisih (self):
-        pass
+        self.beda = []
+        for i in range (len(self.cstdg)):
+            try:
+                self.beda.append(int(self.cstdg[i])-int(self.cuutg[i]))
+            except:
+                print("")
+
+        time.sleep(1)
+        self.loading.setValue(55)
+
+        self.conclusion()
+
     # 8. kesimpulan
     def conclusion (self):
-        pass
+        selisih = np.array(self.beda)
+        beda = np.mean(selisih)
+
+        time.sleep(1)
+        self.loading.setValue(60)
+
+        # masukkan ke rangkuman per hari
+        sum.append(beda)
+        # tampilkan ke output
+        self.outputs.append(f"Rata-rata selisih pada tanggal {self.mjdname.text()} adalah {beda}")
+        time.sleep(1)
+        self.loading.setValue(65)
+        allan = self.allan_variance(sum,1)
+        self.allan.setText(allan)
+        time.sleep(1)
+        self.loading.setValue(100)
 
     # semuanya
     def initUI(self):
