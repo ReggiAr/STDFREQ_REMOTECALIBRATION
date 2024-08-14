@@ -9,13 +9,13 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 08-08-2024 22:41 UTC(IDN)
+# Updated 14-08-2024 15:30 UTC(IDN)
 
 '''
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
 CGGTTS ANALYZER
 GUI--
-UPDATE 08/08/2024
+UPDATE 14/08/2024
 '''
 
 # -------- Libraries
@@ -26,13 +26,12 @@ import os
 
 # -------- -------- GUI Libraries
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar, QTextEdit, QDialog
-from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QComboBox, QSpinBox, QMessageBox, QSpacerItem, QSizePolicy
-from PyQt5.QtGui import QPixmap, QFont, QIcon,  QDesktopServices
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal
+from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QComboBox, QMessageBox, QSpacerItem, QSizePolicy
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt
 
 # -------- -------- Time Libraries
 from datetime import date
-import datetime as dt
 from astropy.time import Time
 import time
 
@@ -53,15 +52,14 @@ prog = "QProgressBar { border-radius :8px ; text-align: center; background-color
 # -------- -------- Font
 font = QFont("Inter",10)
 
-# global variabel
-sum = []
-mjd = []
-
-
 # Class
 class jendelautama(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.sumA = []
+        self.mjdA = []
+        self.aver = []
 
         self.initUI()
     
@@ -282,9 +280,9 @@ class jendelautama(QWidget):
     # untuk output
     def output (self):
 
-        alllabel = QLabel()
-        alllabel.setText("Allan Variance")
-        alllabel.setFont(font)
+        #alllabel = QLabel()
+        #alllabel.setText("Allan Variance")
+        #alllabel.setFont(font)
 
         corrlabel = QLabel()
         corrlabel.setText("Correction")
@@ -294,11 +292,11 @@ class jendelautama(QWidget):
         outlabel.setText("O U T P U T")
         outlabel.setFont(font)
 
-        self.allan = QLineEdit(self)
+        #self.allan = QLineEdit(self)
         self.correction = QLineEdit(self)
-        self.allan.setFont(font)
+        #self.allan.setFont(font)
         self.correction.setFont(font)
-        self.allan.setReadOnly(True)
+        #self.allan.setReadOnly(True)
         self.correction.setReadOnly(True)
 
         self.outputs = QTextEdit(self)
@@ -322,8 +320,8 @@ class jendelautama(QWidget):
         dua = QVBoxLayout()
         untukoutput = QHBoxLayout()
 
-        satu.addWidget(alllabel)
-        satu.addWidget(self.allan)
+        #satu.addWidget(alllabel)
+        #satu.addWidget(self.allan)
         satu.addWidget(corrlabel)
         satu.addWidget(self.correction)
         satu.addWidget(self.delete)
@@ -397,6 +395,7 @@ class jendelautama(QWidget):
 
         self.PseudoOutput = QLineEdit(uPseudoBox)
         self.PseudoOutput.setFont(font)
+        self.PseudoOutput.setStyleSheet(oren)
         self.PseudoOutput.setReadOnly(True)
 
         snumber = QLabel(uPseudoBox)
@@ -420,6 +419,7 @@ class jendelautama(QWidget):
 
         self.uPs = QLineEdit(uPseudoBox)
         self.uPs.setFont(font)
+        self.uPs.setStyleSheet(oren)
         self.uPs.setReadOnly(True)
 
         spasi = QSpacerItem(30, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -473,7 +473,6 @@ class jendelautama(QWidget):
         
         days = self.jumlah.currentText()
         day = int(days)
-        self.workbook = Workbook()
         worksheet = self.workbook.create_sheet(title=f" Data CGGTTS ")
 
         stdev = []
@@ -546,7 +545,6 @@ class jendelautama(QWidget):
         except:
             self.PseudoOutput.setText("Please Check Folder Content")
 
-
         try:
             samp = float(self.samplingnumber.text())
             sd = float(standar_deviasi/10)
@@ -610,7 +608,7 @@ class jendelautama(QWidget):
                         if len(parts) > 1:  # Ensure there are at least two parts
                             try:
                                 value = float(parts[1])  # The value is at index 1
-                                hasil = str(value)
+                                hasil = str(f"{value:.2f}")
                                 self.kor.setText(hasil)
                                 #print(f"UTC-UTC(IDN) at {n} is : {value}")
                             except ValueError:
@@ -643,7 +641,7 @@ class jendelautama(QWidget):
                     kons = (values[1]-values[0])/5
                     #print(kons)
                     nilai = values[0]+kons*(n-before)
-                    hasil = str(nilai)
+                    hasil = str(f"{nilai:.2f}")
                     self.kor.setText(hasil)
                     #print(f"UTC - UTC(IDN) at {n} is {nilai}")
                 else:
@@ -661,34 +659,10 @@ class jendelautama(QWidget):
         if Format == "2E":
             try:
                 nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[16].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("16 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
                 header = stdLines[17].strip().split()
                 std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
             except:
                 print("17 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[18].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("18 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[19].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("19 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[20].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("20 not found")
         else:
             nama_kolom = ['PRN','STTIME','REFGPS']
             header = stdLines[17].strip().split()
@@ -731,34 +705,10 @@ class jendelautama(QWidget):
         if Format == "2E":
             try:
                 nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[16].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("16 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
                 header = stdLines[17].strip().split()
                 std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
             except:
                 print("17 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[18].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("18 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[19].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("19 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[20].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("20 not found")
 
         else:
             nama_kolom = ['PRN','STTIME','REFGPS']
@@ -783,34 +733,10 @@ class jendelautama(QWidget):
         if Format == "2E":
             try:
                 nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[16].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("16 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
                 header = stdLines[17].strip().split()
                 std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
             except:
                 print("17 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[18].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("18 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[19].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("19 not found")
-            try:
-                nama_kolom = ['SAT','STTIME','REFSYS']
-                header = stdLines[20].strip().split()
-                std_indeks_kolom = [header.index(kolom) for kolom in nama_kolom]
-            except:
-                print("20 not found")
 
         else:
             nama_kolom = ['PRN','STTIME','REFGPS']
@@ -829,14 +755,11 @@ class jendelautama(QWidget):
 
         return RefGPS
 
-    def excel (self, posisi, data):
+    def excel (self, posisi, data, mjd):
 
         for i, item in enumerate (data,start=4):
-            cell = self.worksheet.cell(row=i, column=posisi)
+            cell = mjd.cell(row=i, column=posisi)
             cell.value=item
-
-        excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
-        self.workbook.save(excelFile)
 
     def cek (self, ini):
         for a in range(len(ini) - 1):
@@ -847,7 +770,7 @@ class jendelautama(QWidget):
                 pass
         return ini
     
-    def allan_variance(self,data, tau=1):
+    def allan_variance(self,data, tau):
         """
         Menghitung Allan Variance dari data list.
 
@@ -859,7 +782,8 @@ class jendelautama(QWidget):
         float: Allan Variance dari data.
         """
         try:
-            n = len(data)
+            ini = np.array(data)
+            n = len(ini)
             if n < 2 * tau:
                 raise ValueError("Data tidak cukup untuk menghitung Allan Variance dengan nilai tau yang diberikan.")
 
@@ -913,27 +837,11 @@ class jendelautama(QWidget):
         else:
             try:
                 time.sleep(1)
-                self.loading.setValue(7)
-                self.workbook = Workbook()
-                self.worksheet = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
-                header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT"]
-                header2 = ["PRN","STTIME","REFGPS","REFGPS COR","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
-
-                for i, item in enumerate (header1,start=2):
-                    cell = self.worksheet.cell(row=2, column=i)
-                    cell.value=item
-
-                for i, item in enumerate (header2,start=2):
-                    cell = self.worksheet.cell(row=3, column=i)
-                    cell.value=item
+                self.loading.setValue(10)
                 try:
                     self.find_numbers(int(self.mjdname.text()))
-                    self.loading.setValue(14)
-                    time.sleep(5)
-                    excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
-                    self.workbook.save(excelFile)
                     time.sleep(1)
-                    self.loading.setValue(21)
+                    self.loading.setValue(20) 
                     self.read()
 
                 except:
@@ -951,8 +859,9 @@ class jendelautama(QWidget):
             uutfile = f"{self.locUUT.text()}/{self.uutname.currentText()}"
             uutformats = self.tipeUUT.currentText()
             
-            print(stdfile)
-            print(uutfile)
+            time.sleep(1)
+            self.loading.setValue(30)
+
         except:
             self.show_warning("Error saat membaca file txt")
 
@@ -963,34 +872,21 @@ class jendelautama(QWidget):
         self.uutPrn = self.readprn(uutfile, uutformats)
         self.uutSttime = self.readsttime(uutfile, uutformats)
         self.uutRefGPS = self.readRefGPS(uutfile, uutformats)
-        
-        time.sleep(1)
-        self.loading.setValue(28)
 
-        #print(self.stdPrn)
-
-        self.excel(2,self.stdPrn)
-        self.excel(3,self.stdSttime)
-        self.excel(4,self.stdRefGPS)
-
-        self.excel(7,self.uutPrn)
-        self.excel(8,self.uutSttime)
-        self.excel(9,self.uutRefGPS)
-
-        time.sleep(1)
-        self.loading.setValue(35)
+        time.sleep(5)
+        self.loading.setValue(40)
 
         self.koreksi()
 
     # 3. Koreksi dengan data circular-T
     def koreksi(self):
-        korek = float(self.kor.text())
+        korek = (float(self.kor.text()))*10
+
         oke = [float(x) for x in self.stdRefGPS]
         self.stdcorrefgps = list(map(lambda x: x - korek, oke))
 
-        self.excel(5, self.stdcorrefgps)
         time.sleep(1)
-        self.loading.setValue(42)
+        self.loading.setValue(50)
 
         self.ref()
 
@@ -1007,13 +903,7 @@ class jendelautama(QWidget):
         self.uutRefVal = list(map(lambda x , y: x * y, c,d))
 
         time.sleep(1)
-        self.loading.setValue(49)
-
-        self.excel (11, self.stdRefVal)
-        self.excel (12, self.uutRefVal)
-
-        time.sleep(1)
-        self.loading.setValue(56)
+        self.loading.setValue(60)
 
         self.sorting()
 
@@ -1033,15 +923,6 @@ class jendelautama(QWidget):
 
         self.sort_std_refval = self.cek(sort_std_refval)
         self.sort_uut_refval = self.cek(sort_uut_refval)
-
-        time.sleep(1)
-        self.loading.setValue(63)
-
-        self.excel(14,self.sort_std_refval)
-        self.excel(15,self.sort_std_refgps)
-
-        self.excel(16,sort_uut_refval)
-        self.excel(17,self.sort_uut_refgps)
 
         time.sleep(1)
         self.loading.setValue(70)
@@ -1069,15 +950,7 @@ class jendelautama(QWidget):
                     pass
 
         time.sleep(1)
-        self.loading.setValue(77)
-
-        self.excel(19, self.cstdv)
-        self.excel(20, self.cstdg)
-        self.excel(21, self.cuutv)
-        self.excel(22, self.cuutg)
-
-        time.sleep(1)
-        self.loading.setValue(84)
+        self.loading.setValue(80)
 
         self.selisih()
 
@@ -1091,31 +964,70 @@ class jendelautama(QWidget):
                 print("")
 
         time.sleep(1)
-        self.loading.setValue(91)
-
-        self.excel(24,self.beda)
+        self.loading.setValue(90)
 
         self.conclusion()
 
     # 8. kesimpulan
     def conclusion (self):
         selisih = np.array(self.beda)
-        sel = float(np.mean(selisih))
+        sel = (float(np.mean(selisih)))/10
         beda = f"{sel:.2f}"
-        self.correction.setText(beda)
-
-        time.sleep(1)
-        self.loading.setValue(98)
-
-        # masukkan ke rangkuman per hari
-        sum.append(sel)
-        mjd.append(self.mjdname.text())
-        # tampilkan ke output
         self.outputs.append(f"Rata-rata selisih pada tanggal {self.mjdname.text()} adalah {beda}")
-        time.sleep(1)
-        self.loading.setValue(99)
-        allan = self.allan_variance(sum)
-        self.allan.setText(allan)
+
+        self.aver.append(sel)
+        self.mjdA.append(int(self.mjdname.text()))
+
+        a = np.array(self.aver)
+
+        rerata = np.mean(a)
+        rata = f"{rerata:.2f}"
+        self.correction.setText(rata)
+
+        # - - - - - - - print excel
+
+        
+        mjd = self.workbook.create_sheet(title=f"{self.mjdname.text()}")
+
+        header1 = ["STD RAW DATA","","","","","UUT RAW DATA","","","","REF VAL","","","SORTED DATA STD","","SORTED DATA UUT","","","MATCH DATA STD","","MATCH DATA UUT","","","STD-UUT"]
+        header2 = ["PRN","STTIME","REFGPS","REFGPS COR","","PRN","STTIME","REFGPS","","STD","UUT","","REFVAL","REFGPS","REFVAL","REFGPS","","REFVAL","REFGPS","REFVAL","REFGPS"]
+
+        for i, item in enumerate (header1,start=2):
+            cell = mjd.cell(row=2, column=i)
+            cell.value=item
+
+        for i, item in enumerate (header2,start=2):
+            cell = mjd.cell(row=3, column=i)
+            cell.value=item
+
+        self.excel(2,self.stdPrn,mjd)
+        self.excel(3,self.stdSttime,mjd)
+        self.excel(4,self.stdRefGPS,mjd)
+        self.excel(5, self.stdcorrefgps,mjd)
+
+        self.excel(7,self.uutPrn,mjd)
+        self.excel(8,self.uutSttime,mjd)
+        self.excel(9,self.uutRefGPS,mjd)
+
+        self.excel (11, self.stdRefVal,mjd)
+        self.excel (12, self.uutRefVal,mjd)
+
+        self.excel(14,self.sort_std_refval,mjd)
+        self.excel(15,self.sort_std_refgps,mjd)
+
+        self.excel(16,self.sort_uut_refval,mjd)
+        self.excel(17,self.sort_uut_refgps,mjd)
+
+        self.excel(19, self.cstdv,mjd)
+        self.excel(20, self.cstdg,mjd)
+        self.excel(21, self.cuutv,mjd)
+        self.excel(22, self.cuutg,mjd)
+
+        self.excel(24,self.beda,mjd)
+
+        excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
+        self.workbook.save(excelFile)
+
         time.sleep(1)
         self.loading.setValue(100)
 
@@ -1123,44 +1035,41 @@ class jendelautama(QWidget):
     def selesai (self):
         summary = self.workbook.create_sheet(title=f" Summary ")
 
-        for i, item in enumerate (mjd,start=4):
-            summary = self.worksheet.cell(row=i, column=2)
-            summary.value=item
+        for i, item in enumerate (self.mjdA,start=4):
+            cell = summary.cell(row=i, column=2)
+            cell.value=item
 
-        for i, item in enumerate (sum,start=4):
-            summary = self.worksheet.cell(row=i, column=3)
-            summary.value=item
+        for i, item in enumerate (self.aver,start=4):
+            cell = summary.cell(row=i, column=3)
+            cell.value=item
 
-        allan = self.allan_variance(sum)
-        cell = summary.cell(row=5,column=5)
-        cell.value = allan
-
-        selisih = np.array(self.beda)
-        sel = float(np.mean(selisih))
-        beda = f"{sel:.2f}"
-        self.correction.setText(beda)
-        cell = summary.cell(row=5,column=6)
-        cell.value = beda
-
-        cell = summary.cell(row=4,column=5)
-        cell.value = "Allan"
-        cell = summary.cell(row=4,column=6)
+        cell = summary.cell(row=3,column=2)
+        cell.value = "MJD"
+        cell = summary.cell(row=3,column=3)
         cell.value = "Average"
 
         excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
         self.workbook.save(excelFile)
+        self.show_warning(f"Worksheet anda telah tersimpan di {excelFile}")
     
     # 10. Hapus
     def hapus (self):
-        sum.pop()
-        mjd.pop()
+        try:
+            self.aver.pop()
+            self.mjdA.pop()
+        except:
+            self.show_warning("Jangan Kebanyakan Hapusnya")
 
-        allan = self.allan_variance(sum)
-        selisih = np.array(self.beda)
-        sel = float(np.mean(selisih))
-        beda = f"{sel:.2f}"
-        self.correction.setText(beda)
-        self.allan.setText(allan)
+        a = np.array(self.aver)
+        beda = np.mean(a)
+        self.correction.setText(f"{beda:.2f}")
+
+        cursor = self.outputs.textCursor()
+        cursor.movePosition(cursor.End)  # Pindah ke akhir teks
+        cursor.movePosition(cursor.StartOfBlock, cursor.KeepAnchor)  # Pilih baris terakhir
+        cursor.removeSelectedText()  # Hapus teks yang dipilih
+        cursor.deleteChar()  # Hapus karakter newline jika ada
+        self.outputs.setTextCursor(cursor)
 
     # semuanya
     def initUI(self):
@@ -1180,6 +1089,8 @@ class jendelautama(QWidget):
         self.layoututama.addLayout(footer_layout)
 
         self.setLayout(self.layoututama)
+    
+        self.workbook = Workbook()
 
         self.show ()
 
