@@ -9,13 +9,12 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 14-08-2024 15:30 UTC(IDN)
-
+# Updated 15-08-2024 09:20 UTC(IDN)
 '''
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
 CGGTTS ANALYZER
 GUI--
-UPDATE 14/08/2024
+UPDATE 15/08/2024
 '''
 
 # -------- Libraries
@@ -27,7 +26,7 @@ import os
 # -------- -------- GUI Libraries
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar, QTextEdit, QDialog
 from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QComboBox, QMessageBox, QSpacerItem, QSizePolicy
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import Qt
 
 # -------- -------- Time Libraries
@@ -1074,6 +1073,9 @@ class jendelautama(QWidget):
     # semuanya
     def initUI(self):
         self.setWindowTitle(' Time and Frequency Standard Remote Calibration ')
+
+        ikon = QIcon(r'icon.png')
+        self.setWindowIcon(ikon)
 
         header_layout = self.header()
         input_layout = self.input()
