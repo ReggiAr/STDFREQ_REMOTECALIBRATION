@@ -9,12 +9,13 @@
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 #
-# Updated 15-08-2024 09:20 UTC(IDN)
+# Updated 21-08-2024 22:50 UTC(IDN)
+
 '''
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
 CGGTTS ANALYZER
 GUI--
-UPDATE 15/08/2024
+UPDATE 21/08/2024
 '''
 
 # -------- Libraries
@@ -33,6 +34,7 @@ from PyQt5.QtCore import Qt
 from datetime import date
 from astropy.time import Time
 import time
+from datetime import datetime, timedelta
 
 # -------- -------- Time Libraries
 from openpyxl import Workbook
@@ -76,6 +78,7 @@ class jendelautama(QWidget):
         self.informasi.setText(" i ")
         self.informasi.setStyleSheet(oren)
         self.informasi.setFont(font)
+        self.informasi.clicked.connect(self.open_pdf)
 
         # set tanggal hari
         hari_ini = date.today()
@@ -279,10 +282,6 @@ class jendelautama(QWidget):
     # untuk output
     def output (self):
 
-        #alllabel = QLabel()
-        #alllabel.setText("Allan Variance")
-        #alllabel.setFont(font)
-
         corrlabel = QLabel()
         corrlabel.setText("Correction")
         corrlabel.setFont(font)
@@ -313,7 +312,13 @@ class jendelautama(QWidget):
         self.uPsudorange.setStyleSheet(ijau)
         self.uPsudorange.clicked.connect(self.uPseudorange)
 
-        spasi = QSpacerItem(60, 100, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.mjdcal = QPushButton(self)
+        self.mjdcal.setText("MJD Calc")
+        self.mjdcal.setFont(font)
+        self.mjdcal.setStyleSheet(ijau)
+        self.mjdcal.clicked.connect(self.mjdCalculator)
+
+        spasi = QSpacerItem(60, 50, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         satu = QVBoxLayout()
         dua = QVBoxLayout()
@@ -324,6 +329,8 @@ class jendelautama(QWidget):
         satu.addWidget(corrlabel)
         satu.addWidget(self.correction)
         satu.addWidget(self.delete)
+        satu.addItem(spasi)
+        satu.addWidget(self.mjdcal)
         satu.addWidget(self.uPsudorange)
         satu.addItem(spasi)
 
@@ -458,6 +465,114 @@ class jendelautama(QWidget):
 
         uPseudoBox.exec_()
 
+    def mjdCalculator (self):
+
+        spasi = QSpacerItem(30, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        mjdCalculator = QDialog(self)
+        mjdCalculator.setWindowTitle("MJD DATE CALCULATOR")
+
+        mjd = QLabel(self)
+        mjd.setFont(font)
+        mjd.setText("MJD\t")
+
+        tanggal = QLabel(self)
+        tanggal.setFont(font)
+        tanggal.setText("Date\t")
+
+        bulan = QLabel(self)
+        bulan.setFont(font)
+        bulan.setText("Month\t")
+
+        tahun = QLabel(self)
+        tahun.setFont(font)
+        tahun.setText("Year\t")
+
+        self.tomb1 = QPushButton(self)
+        self.tomb1.setText("Calculate MJD")
+        self.tomb1.setFont(font)
+        self.tomb1.setStyleSheet(ijau)
+        self.tomb1.clicked.connect(self.datetomjd)
+
+        self.tanggals = QLineEdit(self)
+        self.tanggals.setStyleSheet(oren)
+        self.tanggals.setFont(font)
+        
+        self.bulans = QLineEdit(self)
+        self.bulans.setStyleSheet(oren)
+        self.bulans.setFont(font)
+
+        self.tahuns = QLineEdit(self)
+        self.tahuns.setStyleSheet(oren)
+        self.tahuns.setFont(font)
+
+        self.mjds = QLineEdit(self)
+        self.mjds.setStyleSheet(oren)
+        self.mjds.setFont(font)
+
+        self.tomb2 = QPushButton(self)
+        self.tomb2.setText("Calculate DATE")
+        self.tomb2.setFont(font)
+        self.tomb2.setStyleSheet(ijau)
+        self.tomb2.clicked.connect(self.mjdtodate)
+
+        satu = QVBoxLayout ()
+        satu.addWidget(mjd)
+        satu.addWidget(tanggal)
+        satu.addWidget(bulan)
+        satu.addWidget(tahun)
+
+        dua = QVBoxLayout ()
+        dua.addWidget(self.mjds)
+        dua.addWidget(self.tanggals)
+        dua.addWidget(self.bulans)
+        dua.addWidget(self.tahuns)
+
+        lima = QHBoxLayout()
+        lima.addItem(spasi)
+        lima.addItem(spasi)
+        lima.addWidget(self.tomb1)
+        lima.addWidget(self.tomb2)
+
+        tiga = QHBoxLayout()
+        tiga.addLayout(satu)
+        tiga.addItem(spasi)
+        tiga.addLayout(dua)
+
+        empat = QVBoxLayout (mjdCalculator)
+        empat.addLayout(tiga)
+        empat.addLayout(lima)
+        empat.addItem(spasi)
+
+        mjdCalculator.exec_()
+
+    def datetomjd (self):
+        tanggal = int(self.tanggals.text())
+        bulan = int(self.bulans.text())
+        tahun = int(self.tahuns.text())
+
+        date = datetime(tahun,bulan,tanggal)
+        mjd_epoch = datetime(1858, 11, 17)
+
+        delta = date - mjd_epoch
+        hasil = delta.days
+        hasils = str(hasil)
+        self.mjds.setText(hasils)
+
+    def mjdtodate (self):
+        mjd = int(self.mjds.text())
+        mjd_epoch = datetime(1858, 11, 17)
+
+        date = mjd_epoch + timedelta(days=mjd)
+
+        tanggal = str(date.day)
+        tahun = str (date.year)
+        bulan = str (date.month)
+
+        self.tanggals.setText(tanggal)
+        self.bulans.setText(bulan)
+        self.tahuns.setText(tahun)
+
+        
     #----------Buka File
     def showDialog(self):
         # Buka dialog pemilihan folder
@@ -568,6 +683,12 @@ class jendelautama(QWidget):
             file_path = os.path.join(folder, filename)
             if os.path.isfile(file_path):
                 self.utcname.addItem(filename)
+
+    #buka file pdf
+    def open_pdf(self):
+        file_path ='I.MF.2.04 Remote Calibration.pdf'
+        if os.path.exists(file_path):
+            os.startfile(file_path)
 
     # klik uut
     def uuts (self):
