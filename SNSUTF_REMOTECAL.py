@@ -3,19 +3,15 @@
 #
 # Copyright (c) 2024 Reggi Aryunadi
 # 
-# 
 # This software is created for Remote Calibration services at
 # the Time and Frequency Laboratory of SNSU-BSN (National Metrology Institute of Indonesia)
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
 #
 # Updated 21-08-2024 22:50 UTC(IDN)
 
 '''
 SOFTWARE TIME FREQUENCY REMOTE CALIBRATION
 CGGTTS ANALYZER
-GUI--
-UPDATE 21/08/2024
+UPDATE 10/09/2024
 '''
 
 # -------- Libraries
@@ -27,8 +23,8 @@ import os
 # -------- -------- GUI Libraries
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar, QTextEdit, QDialog
 from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QLineEdit, QPushButton, QComboBox, QMessageBox, QSpacerItem, QSizePolicy
-from PyQt5.QtGui import QFont, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QIcon, QDesktopServices
+from PyQt5.QtCore import Qt, QUrl, pyqtSignal
 
 # -------- -------- Time Libraries
 from datetime import date
@@ -48,6 +44,7 @@ import requests
 # -------- -------- Color
 oren = "background-color: #369FFF; color: white"
 ijau = "background-color: #5CA904; color: white"
+biu = "background-color: #FFA500; color: white"
 prog = "QProgressBar { border-radius :8px ; text-align: center; background-color:#369FFF ; color: white; border: 1px solid black;} QProgressBar::chunk { background-color:#5CA904 ; border-radius :8px; }"
 
 # -------- -------- Font
@@ -58,9 +55,11 @@ class jendelautama(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.sumA = []
         self.mjdA = []
         self.aver = []
+
+        self.utcidn = []
+        self.uutdata = []
 
         self.initUI()
     
@@ -318,6 +317,12 @@ class jendelautama(QWidget):
         self.mjdcal.setStyleSheet(ijau)
         self.mjdcal.clicked.connect(self.mjdCalculator)
 
+        self.klikpolar = QPushButton(self)
+        self.klikpolar.setText("UTC(IDN) Data")
+        self.klikpolar.setStyleSheet(biu)
+        self.klikpolar.setFont(font)
+        self.klikpolar.clicked.connect(self.polarx5)
+
         spasi = QSpacerItem(60, 50, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         satu = QVBoxLayout()
@@ -332,7 +337,7 @@ class jendelautama(QWidget):
         satu.addItem(spasi)
         satu.addWidget(self.mjdcal)
         satu.addWidget(self.uPsudorange)
-        satu.addItem(spasi)
+        satu.addWidget(self.klikpolar)
 
         dua.addWidget(outlabel)
         dua.addWidget(self.outputs)
@@ -463,7 +468,7 @@ class jendelautama(QWidget):
         layout.addItem(spasi)
         layout.addWidget(kaki)
 
-        uPseudoBox.exec_()
+        uPseudoBox.show()
 
     def mjdCalculator (self):
 
@@ -543,7 +548,7 @@ class jendelautama(QWidget):
         empat.addLayout(lima)
         empat.addItem(spasi)
 
-        mjdCalculator.exec_()
+        mjdCalculator.show()
 
     def datetomjd (self):
         tanggal = int(self.tanggals.text())
@@ -573,6 +578,11 @@ class jendelautama(QWidget):
         self.tahuns.setText(tahun)
 
         
+    #akses polar x 5 tr
+    def polarx5 (self):
+        url = QUrl('http://10.5.4.242/')  # Ganti dengan URL yang diinginkan
+        QDesktopServices.openUrl(url)
+
     #----------Buka File
     def showDialog(self):
         # Buka dialog pemilihan folder
@@ -987,11 +997,15 @@ class jendelautama(QWidget):
 
         self.stdPrn = self.readprn(stdfile,stdformats)
         self.stdSttime= self.readsttime(stdfile,stdformats)
-        self.stdRefGPS = self.readRefGPS(stdfile,stdformats)
+        stdRefGPS = self.readRefGPS(stdfile,stdformats)
+        stdrefgpss = [float(x) for x in stdRefGPS]
+        self.stdRefGPS = [num / 10 for num in stdrefgpss]
 
         self.uutPrn = self.readprn(uutfile, uutformats)
         self.uutSttime = self.readsttime(uutfile, uutformats)
-        self.uutRefGPS = self.readRefGPS(uutfile, uutformats)
+        uutRefGPS = self.readRefGPS(uutfile, uutformats)
+        uutRefGPSS = [float(x) for x in uutRefGPS]
+        self.uutRefGPS = [num/10 for num in uutRefGPSS]
 
         time.sleep(5)
         self.loading.setValue(40)
@@ -1000,10 +1014,9 @@ class jendelautama(QWidget):
 
     # 3. Koreksi dengan data circular-T
     def koreksi(self):
-        korek = (float(self.kor.text()))*10
+        korek = (float(self.kor.text()))
 
-        oke = [float(x) for x in self.stdRefGPS]
-        self.stdcorrefgps = list(map(lambda x: x - korek, oke))
+        self.stdcorrefgps = list(map(lambda x: x - abs(korek), self.stdRefGPS))
 
         time.sleep(1)
         self.loading.setValue(50)
@@ -1082,7 +1095,7 @@ class jendelautama(QWidget):
                 self.beda.append(int(self.cstdg[i])-int(self.cuutg[i]))
             except:
                 print("")
-
+        
         time.sleep(1)
         self.loading.setValue(90)
 
@@ -1091,9 +1104,18 @@ class jendelautama(QWidget):
     # 8. kesimpulan
     def conclusion (self):
         selisih = np.array(self.beda)
-        sel = (float(np.mean(selisih)))/10
+        sel = (float(np.mean(selisih)))
         beda = f"{sel:.2f}"
         self.outputs.append(f"Rata-rata selisih pada tanggal {self.mjdname.text()} adalah {beda}")
+
+        utc = np.array(self.cstdg)
+        utcidn = float(np.mean(utc))
+        self.utcidn.append(utcidn)
+
+        uut = np.array(self.cuutg)
+        uuts = uut.astype(float)
+        uutg = float(np.mean(uuts))
+        self.uutdata.append(uutg)
 
         self.aver.append(sel)
         self.mjdA.append(int(self.mjdname.text()))
@@ -1149,6 +1171,8 @@ class jendelautama(QWidget):
         self.workbook.save(excelFile)
 
         time.sleep(1)
+        tambah = int(self.mjdname.text())+1
+        self.mjdname.setText(str(tambah))
         self.loading.setValue(100)
 
     # 9. Done
@@ -1158,15 +1182,24 @@ class jendelautama(QWidget):
         for i, item in enumerate (self.mjdA,start=4):
             cell = summary.cell(row=i, column=2)
             cell.value=item
-
+        for i, item in enumerate (self.utcidn,start=4):
+            cell = summary.cell(row=i, column=4)
+            cell.value=item
+        for i, item in enumerate (self.uutdata,start=4):
+            cell = summary.cell(row=i, column=5)
+            cell.value=item
         for i, item in enumerate (self.aver,start=4):
-            cell = summary.cell(row=i, column=3)
+            cell = summary.cell(row=i, column=6)
             cell.value=item
 
         cell = summary.cell(row=3,column=2)
         cell.value = "MJD"
-        cell = summary.cell(row=3,column=3)
-        cell.value = "Average"
+        cell = summary.cell(row=3,column=4)
+        cell.value = "UTC(IDN)"
+        cell = summary.cell(row=3,column=5)
+        cell.value = "UUT"
+        cell = summary.cell(row=3,column=6)
+        cell.value = "UTC(IDN) - UUT"
 
         excelFile = f"{self.locOutput.text()}/{self.clientname.text()}.xlsx"
         self.workbook.save(excelFile)
